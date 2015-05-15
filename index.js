@@ -21,7 +21,7 @@ module.exports = function(options) {
   return function(username, password, providerName, callback) {
     var loggedInUser;
 
-    var identityProvider = options.identityProviders[providerName];
+    var identityProvider = _.find(options.identityProviders, {name: providerName});
     if (!identityProvider)
       return callback(new Error("Invalid identityProvider " + providerName));
 

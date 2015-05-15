@@ -36,8 +36,9 @@ describe('login', function() {
           callback(null, [{orgId: '1', name: 'test org'}])
         }
       },
-      identityProviders: {
-        ActiveDirectory: {
+      identityProviders: [
+        {
+          name: 'ActiveDirectory',
           authenticate: function(username, password, callback) {
             callback(null, {
               userId: self.providerUserId,
@@ -46,14 +47,14 @@ describe('login', function() {
             });
           }
         }
-      }
+      ]
     };
 
     this.login = login(this.options);
   });
 
   it('missing provider user returns null', function(done) {
-    this.options.identityProviders.ActiveDirectory.authenticate = function(username, password, callback) {
+    this.options.identityProviders[0].authenticate = function(username, password, callback) {
       callback(null, null);
     };
 
