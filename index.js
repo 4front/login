@@ -1,7 +1,7 @@
 var _ = require('lodash');
 var shortid = require('shortid');
 var async = require('async');
-var debug = require('debug')('4front:user-login');
+var debug = require('debug')('4front:login');
 var jwt = require('jwt-simple');
 
 module.exports = function(options) {
@@ -67,6 +67,8 @@ module.exports = function(options) {
         // Create a JWT for the user
         // Generate a login token that expires in the configured number of minutes
         var expires = Date.now() + (1000 * 60 * options.jwtTokenExpireMinutes);
+
+        debug("issuing jwt expiring in %s minutes", options.jwtTokenExpireMinutes);
         var token = jwt.encode({
           iss: loggedInUser.userId,
           exp: expires
