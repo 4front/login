@@ -19,18 +19,33 @@ module.exports = function(options) {
   });
 
   return function(username, password, providerName, callback) {
-    var loggedInUser;
+    var providerUser, loggedInUser;
+
+    // Allow for an alternative call where the first argument is
+    // the providerUser rather than username/password.
+    if (_.isObject(username)) {
+      providerUser = username;
+      callback = providerName;
+      providerName = password;
+
+      return providerLogin(providerUser, providerName, callback);
+    }
 
     var identityProvider = _.find(options.identityProviders, {name: providerName});
     if (!identityProvider)
       return callback(new Error("Invalid identityProvider " + providerName));
 
-    identityProvider.authenticate(username, password, function(err, providerUser) {
+    identityProvider.authenticate(username, password, function(err, user) {
       if (err) return callback(err);
 
+      providerUser = user;
       if (!providerUser)
         return callback(null, null);
 
+      providerLogin(providerUser, providerName, callback);
+    });
+
+    function providerLogin(providerUser, providerName, callback) {
       var user;
       async.series([
         function(cb) {
@@ -64,8 +79,7 @@ module.exports = function(options) {
 
         callback(null, loggedInUser);
       });
-    });
-
+    }
 
     function getExistingUser(providerUser, providerName, cb) {
       options.database.findUser(providerUser.userId, providerName, function(err, user) {

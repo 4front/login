@@ -130,4 +130,18 @@ describe('login', function() {
       done();
     });
   });
+
+  it('providerUser for of login function', function(done) {
+    var providerUser = {
+      userId: '243553',
+      displayName: 'bob'
+    };
+
+    this.login(providerUser, 'provider', function(err, user) {
+      assert.equal(user.providerUserId, providerUser.userId);
+      assert.equal(user.displayName, providerUser.displayName);
+
+      done();
+    });
+  });
 });
