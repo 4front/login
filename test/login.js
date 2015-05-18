@@ -138,7 +138,8 @@ describe('login', function() {
 
     var providerUser = {
       userId: shortid.generate(),
-      displayName: 'bob',
+      username: 'bob',
+      email: 'bob@test.com',
       forceSameId: true
     };
 
@@ -148,7 +149,7 @@ describe('login', function() {
       // The forceSameId property should cause the user to inherit the
       // providerUserId.
       assert.equal(user.userId, providerUser.userId);
-      assert.equal(user.displayName, providerUser.displayName);
+      assert.equal(user.username, providerUser.username);
 
       done();
     });

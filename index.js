@@ -101,7 +101,7 @@ module.exports = function(options) {
         providerUserId: providerUser.userId,
         provider: providerName,
         lastLogin: new Date()
-      }, _.omit(providerUser, 'userId'));
+      }, _.pick(providerUser, 'avatar', 'username', 'email'));
 
       options.database.createUser(userData, function(err, user) {
         if (err) return cb(err);
