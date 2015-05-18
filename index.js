@@ -93,8 +93,11 @@ module.exports = function(options) {
 
     function createUser(providerUser, providerName, cb) {
       debug("user %s does not exist, creating.", providerUser.userId);
+
       var userData = _.extend({
-        userId: shortid.generate(),
+        // Support special case where the new Aerobatic user has the same
+        // id as the providerUser.
+        userId: providerUser.forceSameId === true ? providerUser.userId : shortid.generate(),
         providerUserId: providerUser.userId,
         provider: providerName,
         lastLogin: new Date()

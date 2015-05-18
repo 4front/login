@@ -132,13 +132,22 @@ describe('login', function() {
   });
 
   it('providerUser for of login function', function(done) {
+    this.options.database.findUser = sinon.spy(function(providerUserId, provider, callback) {
+      callback(null, null);
+    });
+
     var providerUser = {
-      userId: '243553',
-      displayName: 'bob'
+      userId: shortid.generate(),
+      displayName: 'bob',
+      forceSameId: true
     };
 
     this.login(providerUser, 'provider', function(err, user) {
       assert.equal(user.providerUserId, providerUser.userId);
+
+      // The forceSameId property should cause the user to inherit the
+      // providerUserId.
+      assert.equal(user.userId, providerUser.userId);
       assert.equal(user.displayName, providerUser.displayName);
 
       done();
