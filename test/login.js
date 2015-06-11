@@ -20,11 +20,11 @@ describe('login', function() {
     this.options = {
       jwtTokenSecret: 'token_secret',
       database: {
-        findUser: sinon.spy(function(providerUserId, provider, callback) {
+        findUser: sinon.spy(function(providerUserId, providerName, callback) {
           callback(null, {
             userId: self.userId,
             providerUserId: providerUserId,
-            provider: provider
+            provider: providerName
           });
         }),
         createUser: sinon.spy(function(userData, callback) {
@@ -143,6 +143,8 @@ describe('login', function() {
       if (err) return done(err);
 
       assert.equal(user.provider, self.providerName);
+      assert.ok(self.options.database.findUser.calledWith(self.providerUserId, self.providerName));
+
       done();
     });
   });

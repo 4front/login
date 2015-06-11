@@ -36,6 +36,8 @@ module.exports = function(options) {
       identityProvider = _.find(options.identityProviders, {default: true});
       if (!identityProvider)
         return callback(new Error("No default identityProvider found"));
+
+      providerName = identityProvider.name;
     }
     else {
       identityProvider = _.find(options.identityProviders, {name: providerName});
