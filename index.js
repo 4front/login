@@ -53,11 +53,11 @@ module.exports = function(options) {
         },
         function(cb) {
           if (!loggedInUser) {
-            options.logger.info("New user", {code: "4front:login:newUserCreated", provider:providerName, username: username});
+            options.logger.info({code: "4front:login:newUserCreated", provider:providerName, username: username}, "New user");
             createUser(providerUser, providerName, cb);
           }
           else {
-            options.logger.info("User login", {code: "4front:login:userLoggedIn", provider:providerName, username: username});
+            options.logger.info({code: "4front:login:userLoggedIn", provider:providerName, username: username}, "User login");
             updateUser(providerUser, cb);
           }
         },
