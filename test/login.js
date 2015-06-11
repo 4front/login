@@ -43,7 +43,8 @@ describe('login', function() {
             callback(null, {
               userId: self.providerUserId,
               username: username,
-              email: 'test@email.com'
+              email: 'test@email.com',
+              provider: self.providerName
             });
           }
         }
@@ -127,6 +128,24 @@ describe('login', function() {
     this.login('username', 'password', 'InvalidProvider', function(err, user) {
       assert.isNotNull(err);
       assert.ok(/Invalid identityProvider/.test(err.message));
+      done();
+    });
+  });
+
+  it('uses default identityProvider if none specified', function(done) {
+    this.options.identityProviders[0].default = true;
+
+    this.login('username', 'password', null, function(err, user) {
+      if (err) return done(err);
+
+      assert.equal(user.provider, self.providerName);
+      done();
+    });
+  });
+
+  it('throws error if no default identity provider', function(done) {
+    this.login('username', 'password', null, function(err, user) {
+      assert.ok(/No default identityProvider/.test(err.message));
       done();
     });
   });

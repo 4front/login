@@ -8,8 +8,8 @@ module.exports = function(options) {
   if (!options.database)
     throw new Error("Missing database option");
 
-  if (_.isObject(options.identityProviders) === false)
-    throw new Error("Missing identityProviders option");
+  if (_.isArray(options.identityProviders) === false || options.identityProviders.length === 0)
+    throw new Error("No identityProviders specified");
 
   if (!options.jwtTokenSecret)
     throw new Error("Missing jwtTokenSecret option");
@@ -19,11 +19,19 @@ module.exports = function(options) {
   });
 
   return function(username, password, providerName, callback) {
-    var loggedInUser;
+    var identityProvider, loggedInUser;
 
-    var identityProvider = _.find(options.identityProviders, {name: providerName});
-    if (!identityProvider)
-      return callback(new Error("Invalid identityProvider " + providerName));
+    // If no identity provider is specified, use the default one
+    if (_.isEmpty(providerName)) {
+      identityProvider = _.find(options.identityProviders, {default: true});
+      if (!identityProvider)
+        return callback(new Error("No default identityProvider found"));
+    }
+    else {
+      identityProvider = _.find(options.identityProviders, {name: providerName});
+      if (!identityProvider)
+        return callback(new Error("Invalid identityProvider " + providerName));
+    }
 
     identityProvider.authenticate(username, password, function(err, providerUser) {
       if (err) return callback(err);
