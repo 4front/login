@@ -52,10 +52,14 @@ module.exports = function(options) {
           getExistingUser(providerUser, providerName, cb);
         },
         function(cb) {
-          if (!loggedInUser)
+          if (!loggedInUser) {
+            options.logger.info("New user", {code: "4front:login:newUserCreated", provider:providerName, username: username});
             createUser(providerUser, providerName, cb);
-          else
+          }
+          else {
+            options.logger.info("User login", {code: "4front:login:userLoggedIn", provider:providerName, username: username});
             updateUser(providerUser, cb);
+          }
         },
         function(cb) {
           // Load user details

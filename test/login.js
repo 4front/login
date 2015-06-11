@@ -1,4 +1,5 @@
 var assert = require('assert');
+var _ = require('lodash');
 var shortid = require('shortid');
 var sinon = require('sinon');
 var jwt = require('jwt-simple');
@@ -35,6 +36,9 @@ describe('login', function() {
         listUserOrgs: function(userId, callback) {
           callback(null, [{orgId: '1', name: 'test org'}])
         }
+      },
+      logger: {
+        info: _.noop
       },
       identityProviders: [
         {
