@@ -31,6 +31,10 @@ module.exports = function(options) {
       return providerLogin(providerUser, providerName, callback);
     }
 
+    // Force all usernames to be lowercase to avoid case differences
+    // when looking up a user.
+    username = username.toLowerCase();
+
     // If no identity provider is specified, use the default one
     if (_.isEmpty(providerName)) {
       identityProvider = _.find(options.identityProviders, {default: true});
