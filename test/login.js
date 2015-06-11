@@ -1,4 +1,5 @@
 var assert = require('assert');
+var _ = require('lodash');
 var shortid = require('shortid');
 var sinon = require('sinon');
 var jwt = require('jwt-simple');
@@ -35,6 +36,9 @@ describe('login', function() {
         listUserOrgs: function(userId, callback) {
           callback(null, [{orgId: '1', name: 'test org'}])
         }
+      },
+      logger: {
+        info: _.noop
       },
       identityProviders: [
         {
@@ -146,6 +150,30 @@ describe('login', function() {
   it('throws error if no default identity provider', function(done) {
     this.login('username', 'password', null, function(err, user) {
       assert.ok(/No default identityProvider/.test(err.message));
+      done();
+    });
+  });
+
+  it('providerUser for of login function', function(done) {
+    this.options.database.findUser = sinon.spy(function(providerUserId, provider, callback) {
+      callback(null, null);
+    });
+
+    var providerUser = {
+      userId: shortid.generate(),
+      username: 'bob',
+      email: 'bob@test.com',
+      forceSameId: true
+    };
+
+    this.login(providerUser, 'provider', function(err, user) {
+      assert.equal(user.providerUserId, providerUser.userId);
+
+      // The forceSameId property should cause the user to inherit the
+      // providerUserId.
+      assert.equal(user.userId, providerUser.userId);
+      assert.equal(user.username, providerUser.username);
+
       done();
     });
   });
