@@ -15,7 +15,7 @@ describe('login', function() {
 
     this.userId = shortid.generate();
     this.providerUserId = shortid.generate();
-    this.providerName = 'ActiveDirectory';
+    this.providerName = 'dummy';
 
     this.options = {
       jwtTokenSecret: 'token_secret',
@@ -42,7 +42,7 @@ describe('login', function() {
       },
       identityProviders: [
         {
-          name: 'ActiveDirectory',
+          name: this.providerName,
           authenticate: function(username, password, callback) {
             callback(null, {
               userId: self.providerUserId,
@@ -58,15 +58,13 @@ describe('login', function() {
     this.login = login(this.options);
   });
 
-  it('missing provider user returns null', function(done) {
+  it('missing provider user throws invalidCredentials error', function(done) {
     this.options.identityProviders[0].authenticate = function(username, password, callback) {
       callback(null, null);
     };
 
     this.login('username', 'password', this.providerName, function(err, user) {
-      if (err) return done(err);
-
-      assert.isNull(user);
+      assert.equal(err.code, 'invalidCredentials');
       done();
     });
   });

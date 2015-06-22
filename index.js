@@ -4,6 +4,8 @@ var async = require('async');
 var debug = require('debug')('4front:login');
 var jwt = require('jwt-simple');
 
+require('simple-errors');
+
 module.exports = function(options) {
   if (!options.database)
     throw new Error("Missing database option");
@@ -52,10 +54,10 @@ module.exports = function(options) {
     identityProvider.authenticate(username, password, function(err, user) {
       if (err) return callback(err);
 
-      providerUser = user;
-      if (!providerUser)
-        return callback(null, null);
+      if (!user)
+        return callback(Error.create("Could not authenticate user", {code: 'invalidCredentials'}));
 
+      providerUser = user;
       providerLogin(providerUser, providerName, callback);
     });
 
