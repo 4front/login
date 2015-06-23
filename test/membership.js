@@ -16,6 +16,7 @@ describe('membership', function() {
     this.userId = shortid.generate();
     this.providerUserId = shortid.generate();
     this.providerName = 'dummy';
+    this.userOrgs = [{orgId: '1', name: 'test org'}];
 
     this.options = {
       jwtTokenSecret: 'token_secret',
@@ -34,7 +35,7 @@ describe('membership', function() {
           callback(null, userData);
         }),
         listUserOrgs: function(userId, callback) {
-          callback(null, [{orgId: '1', name: 'test org'}])
+          callback(null, self.userOrgs);
         }
       },
       logger: {
@@ -250,6 +251,8 @@ describe('membership', function() {
 
         assert.equal(user.providerUserId, self.providerUserId);
         assert.equal(user.provider, self.providerName);
+        assert.deepEqual(user.orgs, self.userOrgs);
+        
         done();
       });
     });

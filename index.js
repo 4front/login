@@ -68,7 +68,14 @@ module.exports = function(options) {
     getIdentityProvider(providerName, function(err, identityProvider) {
       if (err) return callback(err);
 
-      options.database.findUser(providerUserId, identityProvider.name, callback);
+      options.database.findUser(providerUserId, identityProvider.name, function(err, user) {
+        if (err) return callback(err);
+
+        if (!user)
+          return callback(null, null);
+
+        loadUserDetails(user, callback);
+      });
     });
   };
 
@@ -197,7 +204,7 @@ module.exports = function(options) {
       if (err) return callback(err);
 
       user.orgs = orgs;
-      callback();
+      callback(null, user);
     });
   }
 
