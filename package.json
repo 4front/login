@@ -1,7 +1,7 @@
 {
-  "name": "4front-login",
+  "name": "4front-membership",
   "version": "1.0.0",
-  "description": "Login module for 4front multi-tenant web app platform",
+  "description": "Membership module for 4front multi-tenant web app platform",
   "main": "index.js",
   "scripts": {
     "test": "mocha --reporter spec --bail --check-leaks test/",
@@ -10,7 +10,7 @@
   },
   "keywords": [
     "4front",
-    "users"
+    "membership"
   ],
   "author": "David Von Lehman <https://github.com/dvonlehman>",
   "repository": {

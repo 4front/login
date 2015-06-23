@@ -1,16 +1,22 @@
 var _ = require('lodash');
 var shortid = require('shortid');
 var async = require('async');
-var debug = require('debug')('4front:login');
+var debug = require('debug')('4front:membership');
 var jwt = require('jwt-simple');
 
 require('simple-errors');
+
+var userNameRegexPattern = /[a-z\-\.]{2,20}/i;
+
+// The set of recognized user properties that should be copied over
+// from the providerUser to the 4front user.
+var addtlProviderUserProperties = ['username', 'avatar', 'email', 'displayName'];
 
 module.exports = function(options) {
   if (!options.database)
     throw new Error("Missing database option");
 
-  if (_.isArray(options.identityProviders) === false || options.identityProviders.length === 0)
+  if (!_.isArray(options.identityProviders) || options.identityProviders.length === 0)
     throw new Error("No identityProviders specified");
 
   if (!options.jwtTokenSecret)
@@ -20,137 +26,198 @@ module.exports = function(options) {
     jwtTokenExpireMinutes: 30 // Default to JWT expiration of 30 minutes
   });
 
-  return function(username, password, providerName, callback) {
-    var providerUser, identityProvider, loggedInUser;
+  var exports = {};
 
-    // Allow for an alternative call where the first argument is
-    // the providerUser rather than username/password.
-    if (_.isObject(username)) {
-      providerUser = username;
-      callback = providerName;
-      providerName = password;
+  // Create a new user
+  exports.createUser = function(providerUser, callback) {
+    // Validate user details
+    debugger;
+    if (_.isEmpty(providerUser.username) || userNameRegexPattern.test(providerUser.username) !== true)
+      return callback(Error.create("Invalid username", {code: "invalidUsername"}));
 
-      return providerLogin(providerUser, providerName, callback);
-    }
+    if (_.isEmpty(providerUser.userId))
+      return callback(Error.create("Invalid provider userId", {code: "invalidProviderUserId"}));
 
-    // Force all usernames to be lowercase to avoid case differences
-    // when looking up a user.
-    username = username.toLowerCase();
+    debug("creating user %s", providerUser.username);
 
-    // If no identity provider is specified, use the default one
-    if (_.isEmpty(providerName)) {
-      identityProvider = _.find(options.identityProviders, {default: true});
-      if (!identityProvider)
-        return callback(new Error("No default identityProvider found"));
-
-      providerName = identityProvider.name;
-    }
-    else {
-      identityProvider = _.find(options.identityProviders, {name: providerName});
-      if (!identityProvider)
-        return callback(new Error("Invalid identityProvider " + providerName));
-    }
-
-    identityProvider.authenticate(username, password, function(err, user) {
+    getIdentityProvider(providerUser.identityProvider, function(err, identityProvider) {
       if (err) return callback(err);
 
-      if (!user)
-        return callback(Error.create("Could not authenticate user", {code: 'invalidCredentials'}));
-
-      providerUser = user;
-      providerLogin(providerUser, providerName, callback);
+      createUser(providerUser, identityProvider, callback);
     });
+  };
 
-    function providerLogin(providerUser, providerName, callback) {
-      var user;
-      async.series([
-        function(cb) {
-          getExistingUser(providerUser, providerName, cb);
-        },
-        function(cb) {
-          if (!loggedInUser) {
-            options.logger.info({code: "4front:login:newUserCreated", provider:providerName, username: username}, "New user");
-            createUser(providerUser, providerName, cb);
-          }
-          else {
-            options.logger.info({code: "4front:login:userLoggedIn", provider:providerName, username: username}, "User login");
-            updateUser(providerUser, cb);
-          }
-        },
-        function(cb) {
-          // Load user details
-          loadUserDetails(cb);
-        }
-      ], function(err) {
+  // Update the user's profile
+  exports.updateProfile = function(user, callback) {
+    var userId = user.userId;
+    var updateAttributes = _.pick(addtlProviderUserProperties);
+
+    if (_.isEmpty(updateAttributes))
+      return callback(null, user);
+
+    options.database.updateUser(user, callback);
+  };
+
+  // Find a user with the specified username
+  exports.findUser = function(providerUserId, providerName, callback) {
+    if (_.isFunction(providerName)) {
+      callback = providerName;
+      providerName = null;
+    }
+
+    getIdentityProvider(providerName, function(err, identityProvider) {
+      if (err) return callback(err);
+
+      options.database.findUser(providerUserId, identityProvider.name, callback);
+    });
+  };
+
+  // Special login for when the providerUser object is already in possession by the caller.
+  exports.providerLogin = function(providerUser, callback) {
+    getIdentityProvider(providerUser.providerName, function(err, identityProvider) {
+      if (err) return callback(err);
+
+      providerLogin(providerUser, identityProvider, callback);
+    });
+  };
+
+  // Login with a username and password
+  exports.login = function(username, password, providerName, callback) {
+    var providerUser, loggedInUser;
+
+    if (_.isFunction(providerName)) {
+      callback = providerName;
+      providerName = null;
+    }
+
+    getIdentityProvider(providerName, function(err, identityProvider) {
+      if (err) return callback(err);
+
+      // Force all usernames to be lowercase to avoid case differences
+      // when looking up a user.
+      username = username.toLowerCase();
+
+      debug("authenticating user %s with provider %s", username, identityProvider.name);
+      identityProvider.authenticate(username, password, function(err, providerUser) {
         if (err) return callback(err);
 
-        // Create a JWT for the user
-        // Generate a login token that expires in the configured number of minutes
-        var expires = Date.now() + (1000 * 60 * options.jwtTokenExpireMinutes);
+        if (!providerUser)
+          return callback(Error.create("Could not authenticate user", {code: 'invalidCredentials'}));
 
-        debug("issuing jwt expiring in %s minutes", options.jwtTokenExpireMinutes);
-        var token = jwt.encode({
-          iss: loggedInUser.userId,
-          exp: expires
-        }, options.jwtTokenSecret);
-
-        loggedInUser.jwt = {
-          expires: expires,
-          token: token
-        };
-
-        callback(null, loggedInUser);
+        providerLogin(providerUser, identityProvider, callback);
       });
-    }
-
-    function getExistingUser(providerUser, providerName, cb) {
-      options.database.findUser(providerUser.userId, providerName, function(err, user) {
-        if (err) return cb(err);
-        loggedInUser = user;
-        cb();
-      });
-    }
-
-    function createUser(providerUser, providerName, cb) {
-      debug("user %s does not exist, creating.", providerUser.userId);
-
-      var userData = _.extend({
-        // Support special case where the new Aerobatic user has the same
-        // id as the providerUser.
-        userId: providerUser.forceSameId === true ? providerUser.userId : shortid.generate(),
-        providerUserId: providerUser.userId,
-        provider: providerName,
-        lastLogin: new Date()
-      }, _.pick(providerUser, 'avatar', 'username', 'email'));
-
-      options.database.createUser(userData, function(err, user) {
-        if (err) return cb(err);
-        loggedInUser = user;
-        cb();
-      });
-    }
-
-    function updateUser(providerUser, cb) {
-      debug("update user %s as part of login", loggedInUser.userId);
-      // Tack on additional attributes to the user.
-      _.extend(loggedInUser, _.omit(providerUser, 'userId'));
-      loggedInUser.lastLogin = new Date();
-
-      options.database.updateUser(loggedInUser, function(err, user) {
-        if (err) return cb(err);
-
-        loggedInUser = user;
-        cb();
-      });
-    }
-
-    function loadUserDetails(cb) {
-      options.database.listUserOrgs(loggedInUser.userId, function(err, orgs) {
-        if (err) return cb(err);
-
-        loggedInUser.orgs = orgs;
-        cb();
-      });
-    }
+    });
   };
+
+  return exports;
+
+  function createUser(providerUser, identityProvider, callback) {
+    debug("create user %s", providerUser.username);
+
+    var userData = _.extend({
+      // Support special case where the new Aerobatic user has the same
+      // id as the providerUser.
+      userId: providerUser.forceSameId === true ? providerUser.userId : shortid.generate(),
+      providerUserId: providerUser.userId,
+      provider: identityProvider.name,
+      lastLogin: new Date()
+    }, _.pick(providerUser, addtlProviderUserProperties));
+
+    options.database.createUser(userData, callback);
+  }
+
+  function providerLogin(providerUser, identityProvider, callback) {
+    var loggedInUser;
+    async.series([
+      function(cb) {
+        debug("find user %s", providerUser.userId);
+        options.database.findUser(providerUser.userId, identityProvider.name, function(err, user) {
+          if (err) return cb(err);
+          loggedInUser = user;
+          cb();
+        });
+      },
+      function(cb) {
+        if (!loggedInUser) {
+          options.logger.info({
+            code: "4front:login:newUserCreated",
+            provider:identityProvider.name,
+            username: providerUser.username
+          }, "New user");
+
+          createUser(providerUser, identityProvider, function(err, user) {
+            if (err) return cb(err);
+            loggedInUser = user;
+            cb();
+          });
+        }
+        else {
+          options.logger.info({
+            code: "4front:login:userLoggedIn",
+            provider:identityProvider.name,
+            username: loggedInUser.username
+          }, "User login");
+
+          debug("update login data for user %s", loggedInUser.username);
+          // Tack on additional attributes to the user.
+          _.extend(loggedInUser, _.pick(providerUser, addtlProviderUserProperties));
+
+          loggedInUser.lastLogin = new Date();
+          options.database.updateUser(loggedInUser, cb);
+        }
+      },
+      function(cb) {
+        // Load user details
+        loadUserDetails(loggedInUser, cb);
+      }
+    ], function(err) {
+      if (err) return callback(err);
+
+      // Create a JWT for the user
+      // Generate a login token that expires in the configured number of minutes
+      var expires = Date.now() + (1000 * 60 * options.jwtTokenExpireMinutes);
+
+      debug("issuing jwt expiring in %s minutes", options.jwtTokenExpireMinutes);
+      var token = jwt.encode({
+        iss: loggedInUser.userId,
+        exp: expires
+      }, options.jwtTokenSecret);
+
+      loggedInUser.jwt = {
+        expires: expires,
+        token: token
+      };
+
+      callback(null, loggedInUser);
+    });
+  }
+
+  function loadUserDetails(user, callback) {
+    options.database.listUserOrgs(user.userId, function(err, orgs) {
+      if (err) return callback(err);
+
+      user.orgs = orgs;
+      callback();
+    });
+  }
+
+  function getIdentityProvider(providerName, callback) {
+    // If no identity provider is specified, use the default one
+    var provider;
+    if (_.isEmpty(providerName)) {
+      provider = _.find(options.identityProviders, {default: true});
+
+      // If no identityProvider was explicitly specified
+      // as the default, use the first one.
+      if (!provider)
+        provider = options.identityProviders[0];
+    }
+    else {
+      provider = _.find(options.identityProviders, {name: providerName});
+      if (!provider)
+        return callback(Error.create("Invalid identityProvider " + providerName, {code: "invalidIdentityProvider"}));
+    }
+
+    callback(null, provider);
+  }
 };
