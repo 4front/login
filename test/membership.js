@@ -15,6 +15,10 @@ describe('membership', function() {
 
     this.userId = shortid.generate();
     this.providerUserId = shortid.generate();
+
+    // Currently assuming the providerUserId is the same as the username.
+    this.username = this.providerUserId;
+
     this.providerName = 'dummy';
     this.userOrgs = [{orgId: '1', name: 'test org'}];
 
@@ -46,7 +50,7 @@ describe('membership', function() {
         authenticate: function(username, password, callback) {
           callback(null, {
             userId: self.providerUserId,
-            username: username,
+            username: self.username,
             email: 'test@email.com',
             provider: self.providerName
           });
@@ -70,14 +74,14 @@ describe('membership', function() {
     });
 
     it('non-existent provider user creates new user', function(done) {
-      this.options.database.findUser = sinon.spy(function(providerUserId, provider, callback) {
+      this.options.database.findUser = sinon.spy(function(username, provider, callback) {
         callback(null, null);
       });
 
       this.membership.login('username', 'password', function(err, user) {
         if (err) return done(err);
 
-        assert.isTrue(self.options.database.findUser.calledWith(self.providerUserId, self.providerName));
+        assert.isTrue(self.options.database.findUser.calledWith(self.username, self.providerName));
         assert.isTrue(self.options.database.createUser.calledWith(sinon.match({
           providerUserId: self.providerUserId,
           provider: self.providerName,
@@ -86,16 +90,18 @@ describe('membership', function() {
         assert.isFalse(self.options.database.updateUser.called);
 
         assert.equal(user.providerUserId, self.providerUserId);
+        assert.equal(user.username, self.username);
+
         done();
       });
     });
 
     it('updates existing user', function(done) {
-      this.membership.login('username', 'password', function(err, user) {
+      this.membership.login(this.username, 'password', function(err, user) {
         if (err) return done(err);
 
         assert.isTrue(self.options.database.findUser.calledWith(
-          self.providerUserId, self.providerName));
+          self.username, self.providerName));
 
         assert.isTrue(self.options.database.updateUser.calledWith(sinon.match({
           providerUserId: self.providerUserId,
@@ -111,7 +117,7 @@ describe('membership', function() {
     });
 
     it('gets back a valid JWT', function(done) {
-      this.membership.login('username', 'password', function(err, user) {
+      this.membership.login(self.username, 'password', function(err, user) {
         if (err) return done(err);
 
         assert.isObject(user.jwt);
@@ -137,11 +143,11 @@ describe('membership', function() {
     it('uses default identityProvider if none specified', function(done) {
       this.options.identityProviders[0].default = true;
 
-      this.membership.login('username', 'password', null, function(err, user) {
+      this.membership.login(self.username, 'password', null, function(err, user) {
         if (err) return done(err);
 
         assert.equal(user.provider, self.providerName);
-        assert.ok(self.options.database.findUser.calledWith(self.providerUserId, self.providerName));
+        assert.ok(self.options.database.findUser.calledWith(self.username, self.providerName));
 
         done();
       });
@@ -157,13 +163,13 @@ describe('membership', function() {
 
   describe('providerLogin', function() {
     it('valid login', function(done) {
-      this.options.database.findUser = sinon.spy(function(providerUserId, provider, callback) {
+      this.options.database.findUser = sinon.spy(function(username, provider, callback) {
         callback(null, null);
       });
 
       var providerUser = {
         userId: shortid.generate(),
-        username: 'bob',
+        username: this.username,
         email: 'bob@test.com',
         forceSameId: true
       };
@@ -185,7 +191,7 @@ describe('membership', function() {
     it('success', function(done) {
       var providerUser = {
         userId: this.providerUserId,
-        username: 'bob',
+        username: this.username,
         displayName: 'Bob Smith',
         ignoredProperty: 5
       };
@@ -196,7 +202,7 @@ describe('membership', function() {
         assert.isTrue(self.options.database.createUser.calledWith(sinon.match({
           providerUserId: self.providerUserId,
           provider: self.providerName,
-          username: 'bob',
+          username: self.username,
           displayName: 'Bob Smith'
         })));
 
@@ -243,26 +249,26 @@ describe('membership', function() {
 
   describe('find user', function() {
     it('existing user', function(done) {
-      this.membership.findUser(self.providerUserId, function(err, user) {
+      this.membership.findUser(self.username, function(err, user) {
         if (err) return done(err);
 
         assert.isTrue(self.options.database.findUser.calledWith(
-          self.providerUserId, self.providerName));
+          self.username, self.providerName));
 
         assert.equal(user.providerUserId, self.providerUserId);
         assert.equal(user.provider, self.providerName);
         assert.deepEqual(user.orgs, self.userOrgs);
-        
+
         done();
       });
     });
 
     it("missing user", function(done) {
-      this.options.database.findUser = function(providerUserId, providerName, cb) {
+      this.options.database.findUser = function(username, providerName, cb) {
         cb(null, null);
       };
 
-      this.membership.findUser(self.providerUserId, function(err, user) {
+      this.membership.findUser(self.username, function(err, user) {
         if (err) return done(err);
 
         assert.isNull(user);

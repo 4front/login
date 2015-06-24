@@ -59,7 +59,7 @@ module.exports = function(options) {
   };
 
   // Find a user with the specified username
-  exports.findUser = function(providerUserId, providerName, callback) {
+  exports.findUser = function(username, providerName, callback) {
     if (_.isFunction(providerName)) {
       callback = providerName;
       providerName = null;
@@ -68,13 +68,16 @@ module.exports = function(options) {
     getIdentityProvider(providerName, function(err, identityProvider) {
       if (err) return callback(err);
 
+      // Right now assuming the providerUserId and the username are one in the same.
+      // In the future we may need to ask the identityProvider to translate the
+      // username to the userId.
+      var providerUserId = username;
+
       options.database.findUser(providerUserId, identityProvider.name, function(err, user) {
         if (err) return callback(err);
 
         if (!user)
           return callback(null, null);
-
-        loadUserDetails(user, callback);
       });
     });
   };
