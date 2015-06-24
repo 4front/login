@@ -80,8 +80,13 @@ module.exports = function(options) {
   };
 
   // Special login for when the providerUser object is already in possession by the caller.
-  exports.providerLogin = function(providerUser, callback) {
-    getIdentityProvider(providerUser.providerName, function(err, identityProvider) {
+  exports.providerLogin = function(providerUser, providerName, callback) {
+    if (_.isFunction(providerName)) {
+      callback = providerName;
+      providerName = providerUser.provider;
+    }
+
+    getIdentityProvider(providerName, function(err, identityProvider) {
       if (err) return callback(err);
 
       providerLogin(providerUser, identityProvider, callback);
