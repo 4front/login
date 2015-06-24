@@ -78,7 +78,7 @@ module.exports = function(options) {
 
       // First check if a providerUserId is specified
       if (query.providerUserId) {
-        options.database.findUser(providerUserId, identityProvider.name, callback);
+        options.database.findUser(providerUserId, identityProvider.providerName, callback);
       }
       // If there's a username, ask the identityProvider to translate the username
       // to some posssibly different unique id.
@@ -87,7 +87,7 @@ module.exports = function(options) {
         identityProvider.getUserId(query.username, function(err, userId) {
           if (err) return callback(err);
 
-          options.database.findUser(userId, identityProvider.name, callback);
+          options.database.findUser(userId, identityProvider.providerName, callback);
         });
       }
       else {
@@ -126,7 +126,7 @@ module.exports = function(options) {
       // when looking up a user.
       username = username.toLowerCase();
 
-      debug("authenticating user %s with provider %s", username, identityProvider.name);
+      debug("authenticating user %s with provider %s", username, identityProvider.providerName);
       identityProvider.authenticate(username, password, function(err, providerUser) {
         if (err) return callback(err);
 
@@ -148,7 +148,7 @@ module.exports = function(options) {
       // id as the providerUser.
       userId: providerUser.forceSameId === true ? providerUser.userId : shortid.generate(),
       providerUserId: providerUser.userId,
-      provider: identityProvider.name,
+      provider: identityProvider.providerName,
       lastLogin: new Date()
     }, _.pick(providerUser, addtlProviderUserProperties));
 
@@ -160,7 +160,7 @@ module.exports = function(options) {
     async.series([
       function(cb) {
         debug("find user %s", providerUser.userId);
-        options.database.findUser(providerUser.userId, identityProvider.name, function(err, user) {
+        options.database.findUser(providerUser.userId, identityProvider.providerName, function(err, user) {
           if (err) return cb(err);
           loggedInUser = user;
           cb();
@@ -170,7 +170,7 @@ module.exports = function(options) {
         if (!loggedInUser) {
           options.logger.info({
             code: "4front:login:newUserCreated",
-            provider:identityProvider.name,
+            provider:identityProvider.providerName,
             username: providerUser.username
           }, "New user");
 
@@ -183,7 +183,7 @@ module.exports = function(options) {
         else {
           options.logger.info({
             code: "4front:login:userLoggedIn",
-            provider:identityProvider.name,
+            provider:identityProvider.providerName,
             username: loggedInUser.username
           }, "User login");
 

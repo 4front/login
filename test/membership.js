@@ -44,7 +44,7 @@ describe('membership', function() {
         info: _.noop
       },
       identityProviders: [{
-        name: this.providerName,
+        providerName: this.providerName,
         authenticate: function(username, password, callback) {
           callback(null, {
             userId: self.providerUserId,
