@@ -14,7 +14,7 @@ describe('membership', function() {
     self = this;
 
     this.userId = shortid.generate();
-    this.providerUserId = shortid.generate();
+    this.providerUserId = shortid.generate().toLowerCase();
 
     // Currently assuming the providerUserId is the same as the username.
     this.username = this.providerUserId;
@@ -52,7 +52,10 @@ describe('membership', function() {
             email: 'test@email.com',
             provider: self.providerName
           });
-        }
+        },
+        getUserId: sinon.spy(function(username, callback) {
+          callback(null, self.providerUserId);
+        })
       }]
     };
 
@@ -79,7 +82,8 @@ describe('membership', function() {
       this.membership.login('username', 'password', function(err, user) {
         if (err) return done(err);
 
-        assert.isTrue(self.options.database.findUser.calledWith(self.username, self.providerName));
+        debugger;
+        assert.isTrue(self.options.database.findUser.calledWith(self.providerUserId, self.providerName));
         assert.isTrue(self.options.database.createUser.calledWith(sinon.match({
           providerUserId: self.providerUserId,
           provider: self.providerName,
@@ -99,7 +103,7 @@ describe('membership', function() {
         if (err) return done(err);
 
         assert.isTrue(self.options.database.findUser.calledWith(
-          self.username, self.providerName));
+          self.providerUserId, self.providerName));
 
         assert.isTrue(self.options.database.updateUser.calledWith(sinon.match({
           providerUserId: self.providerUserId,
@@ -145,7 +149,7 @@ describe('membership', function() {
         if (err) return done(err);
 
         assert.equal(user.provider, self.providerName);
-        assert.ok(self.options.database.findUser.calledWith(self.username, self.providerName));
+        assert.ok(self.options.database.findUser.calledWith(self.providerUserId, self.providerName));
 
         done();
       });
@@ -197,6 +201,8 @@ describe('membership', function() {
       this.membership.createUser(providerUser, function(err, user) {
         if (err) return done(err);
 
+        assert.isFalse(self.options.identityProviders[0].getUserId.called);
+
         assert.isTrue(self.options.database.createUser.calledWith(sinon.match({
           providerUserId: self.providerUserId,
           provider: self.providerName,
@@ -218,9 +224,10 @@ describe('membership', function() {
       });
     });
 
-    it('missing userId returns error', function(done) {
+    it('missing userId causes identityProvider.getUserId to be called', function(done) {
       this.membership.createUser({username: 'joe'}, function(err, user) {
-        assert.equal(err.code, 'invalidProviderUserId');
+        assert.ok(self.options.identityProviders[0].getUserId.calledWith('joe'));
+
         done();
       });
     });
@@ -247,11 +254,13 @@ describe('membership', function() {
 
   describe('find user', function() {
     it('existing user', function(done) {
-      this.membership.findUser(self.username, function(err, user) {
+      this.membership.findUser({username: self.username}, function(err, user) {
         if (err) return done(err);
 
+        assert.isTrue(self.options.identityProviders[0].getUserId.calledWith(self.username));
+
         assert.isTrue(self.options.database.findUser.calledWith(
-          self.username, self.providerName));
+          self.providerUserId, self.providerName));
 
         assert.equal(user.providerUserId, self.providerUserId);
         assert.equal(user.provider, self.providerName);
@@ -261,11 +270,11 @@ describe('membership', function() {
     });
 
     it("missing user", function(done) {
-      this.options.database.findUser = function(username, providerName, cb) {
+      this.options.database.findUser = function(query, providerName, cb) {
         cb(null, null);
       };
 
-      this.membership.findUser(self.username, function(err, user) {
+      this.membership.findUser({username: self.username}, function(err, user) {
         if (err) return done(err);
 
         assert.isNull(user);

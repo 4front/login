@@ -31,19 +31,27 @@ module.exports = function(options) {
   // Create a new user
   exports.createUser = function(providerUser, callback) {
     // Validate user details
-    debugger;
     if (_.isEmpty(providerUser.username) || userNameRegexPattern.test(providerUser.username) !== true)
       return callback(Error.create("Invalid username", {code: "invalidUsername"}));
 
-    if (_.isEmpty(providerUser.userId))
-      return callback(Error.create("Invalid provider userId", {code: "invalidProviderUserId"}));
-
     debug("creating user %s", providerUser.username);
 
-    getIdentityProvider(providerUser.identityProvider, function(err, identityProvider) {
+    getIdentityProvider(providerUser.provider, function(err, identityProvider) {
       if (err) return callback(err);
 
-      createUser(providerUser, identityProvider, callback);
+      // If the providerUserId is not known, ask the identityProvider to translate
+      // the username to potentially some other unique identifier.
+      if (!providerUser.userId) {
+        identityProvider.getUserId(providerUser.username, function(err, userId) {
+          if (err) return callback(err);
+
+          providerUser.userId = userId;
+          createUser(providerUser, identityProvider, callback);
+        });
+      }
+      else {
+        createUser(providerUser, identityProvider, callback);
+      }
     });
   };
 
@@ -59,7 +67,7 @@ module.exports = function(options) {
   };
 
   // Find a user with the specified username
-  exports.findUser = function(username, providerName, callback) {
+  exports.findUser = function(query, providerName, callback) {
     if (_.isFunction(providerName)) {
       callback = providerName;
       providerName = null;
@@ -68,12 +76,23 @@ module.exports = function(options) {
     getIdentityProvider(providerName, function(err, identityProvider) {
       if (err) return callback(err);
 
-      // Right now assuming the providerUserId and the username are one in the same.
-      // In the future we may need to ask the identityProvider to translate the
-      // username to the userId.
-      var providerUserId = username;
+      // First check if a providerUserId is specified
+      if (query.providerUserId) {
+        options.database.findUser(providerUserId, identityProvider.name, callback);
+      }
+      // If there's a username, ask the identityProvider to translate the username
+      // to some posssibly different unique id.
+      else if (query.username) {
+        query.username = query.username.toLowerCase();
+        identityProvider.getUserId(query.username, function(err, userId) {
+          if (err) return callback(err);
 
-      options.database.findUser(providerUserId, identityProvider.name, callback);
+          options.database.findUser(userId, identityProvider.name, callback);
+        });
+      }
+      else {
+        callback(new Error("Either username or providerUserId must be provided in the query arg"));
+      }
     });
   };
 
