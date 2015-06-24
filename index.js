@@ -73,18 +73,18 @@ module.exports = function(options) {
       // username to the userId.
       var providerUserId = username;
 
-      options.database.findUser(providerUserId, identityProvider.name, function(err, user) {
-        if (err) return callback(err);
-
-        if (!user)
-          return callback(null, null);
-      });
+      options.database.findUser(providerUserId, identityProvider.name, callback);
     });
   };
 
   // Special login for when the providerUser object is already in possession by the caller.
-  exports.providerLogin = function(providerUser, callback) {
-    getIdentityProvider(providerUser.providerName, function(err, identityProvider) {
+  exports.providerLogin = function(providerUser, providerName, callback) {
+    if (_.isFunction(providerName)) {
+      callback = providerName;
+      providerName = providerUser.provider;
+    }
+
+    getIdentityProvider(providerName, function(err, identityProvider) {
       if (err) return callback(err);
 
       providerLogin(providerUser, identityProvider, callback);
@@ -175,10 +175,6 @@ module.exports = function(options) {
           loggedInUser.lastLogin = new Date();
           options.database.updateUser(loggedInUser, cb);
         }
-      },
-      function(cb) {
-        // Load user details
-        loadUserDetails(loggedInUser, cb);
       }
     ], function(err) {
       if (err) return callback(err);
@@ -199,15 +195,6 @@ module.exports = function(options) {
       };
 
       callback(null, loggedInUser);
-    });
-  }
-
-  function loadUserDetails(user, callback) {
-    options.database.listUserOrgs(user.userId, function(err, orgs) {
-      if (err) return callback(err);
-
-      user.orgs = orgs;
-      callback(null, user);
     });
   }
 

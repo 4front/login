@@ -18,9 +18,7 @@ describe('membership', function() {
 
     // Currently assuming the providerUserId is the same as the username.
     this.username = this.providerUserId;
-
     this.providerName = 'dummy';
-    this.userOrgs = [{orgId: '1', name: 'test org'}];
 
     this.options = {
       jwtTokenSecret: 'token_secret',
@@ -257,7 +255,6 @@ describe('membership', function() {
 
         assert.equal(user.providerUserId, self.providerUserId);
         assert.equal(user.provider, self.providerName);
-        assert.deepEqual(user.orgs, self.userOrgs);
 
         done();
       });
