@@ -229,7 +229,7 @@ module.exports = function(options) {
         provider = options.identityProviders[0];
     }
     else {
-      provider = _.find(options.identityProviders, {name: providerName});
+      provider = _.find(options.identityProviders, {providerName: providerName});
       if (!provider)
         return callback(Error.create("Invalid identityProvider " + providerName, {code: "invalidIdentityProvider"}));
     }
