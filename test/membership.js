@@ -243,10 +243,10 @@ describe('membership', function() {
     this.membership.updateProfile(user, function(err, updatedUser) {
       if (err) return done(err);
 
-      self.options.database.updateUser.calledWith({
+      assert.isTrue(self.options.database.updateUser.calledWith({
         userId: self.userId,
         displayName: user.displayName
-      });
+      }));
 
       done();
     });

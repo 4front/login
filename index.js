@@ -57,13 +57,12 @@ module.exports = function(options) {
 
   // Update the user's profile
   exports.updateProfile = function(user, callback) {
-    var userId = user.userId;
-    var updateAttributes = _.pick(addtlProviderUserProperties);
+    var updateAttributes = _.pick(user, addtlProviderUserProperties.concat('userId'));
 
     if (_.isEmpty(updateAttributes))
       return callback(null, user);
 
-    options.database.updateUser(user, callback);
+    options.database.updateUser(updateAttributes, callback);
   };
 
   // Find a user with the specified username
