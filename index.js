@@ -57,13 +57,12 @@ module.exports = function(options) {
 
   // Update the user's profile
   exports.updateProfile = function(user, callback) {
-    var userId = user.userId;
-    var updateAttributes = _.pick(addtlProviderUserProperties);
+    var updateAttributes = _.pick(user, addtlProviderUserProperties.concat('userId'));
 
     if (_.isEmpty(updateAttributes))
       return callback(null, user);
 
-    options.database.updateUser(user, callback);
+    options.database.updateUser(updateAttributes, callback);
   };
 
   // Find a user with the specified username
@@ -233,7 +232,7 @@ module.exports = function(options) {
         provider = options.identityProviders[0];
     }
     else {
-      provider = _.find(options.identityProviders, {name: providerName});
+      provider = _.find(options.identityProviders, {providerName: providerName});
       if (!provider)
         return callback(Error.create("Invalid identityProvider " + providerName, {code: "invalidIdentityProvider"}));
     }
