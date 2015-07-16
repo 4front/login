@@ -213,6 +213,10 @@ module.exports = function(options) {
         token: token
       };
 
+      // Tack on the groups and roles from the providerUser. This is only
+      // applicable to some identity providers like ldap.
+      _.extend(loggedInUser, _.pick(providerUser, 'groups', 'roles'));
+
       callback(null, loggedInUser);
     });
   }
