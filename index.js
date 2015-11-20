@@ -10,17 +10,20 @@ var userNameRegexPattern = /[a-z\-\.]{2,20}/i;
 
 // The set of recognized user properties that should be copied over
 // from the providerUser to the 4front user.
-var addtlProviderUserProperties = ['username', 'avatar', 'email', 'displayName'];
+var addtlUserProperties = ['username', 'avatar', 'email', 'displayName'];
 
 module.exports = function(options) {
-  if (!options.database)
-    throw new Error("Missing database option");
+  if (!options.database) {
+    throw new Error('Missing database option');
+  }
 
-  if (!_.isArray(options.identityProviders) || options.identityProviders.length === 0)
-    throw new Error("No identityProviders specified");
+  if (!_.isArray(options.identityProviders) || options.identityProviders.length === 0) {
+    throw new Error('No identityProviders specified');
+  }
 
-  if (!options.jwtTokenSecret)
-    throw new Error("Missing jwtTokenSecret option");
+  if (!options.jwtTokenSecret) {
+    throw new Error('Missing jwtTokenSecret option');
+  }
 
   _.defaults(options || {}, {
     jwtTokenExpireMinutes: 30 // Default to JWT expiration of 30 minutes
@@ -31,10 +34,11 @@ module.exports = function(options) {
   // Create a new user
   exports.createUser = function(providerUser, callback) {
     // Validate user details
-    if (_.isEmpty(providerUser.username) || userNameRegexPattern.test(providerUser.username) !== true)
-      return callback(Error.create("Invalid username", {code: "invalidUsername"}));
+    if (_.isEmpty(providerUser.username) || userNameRegexPattern.test(providerUser.username) !== true) {
+      return callback(Error.create('Invalid username', {code: 'invalidUsername'}));
+    }
 
-    debug("creating user %s", providerUser.username);
+    debug('creating user %s', providerUser.username);
 
     getIdentityProvider(providerUser.provider, function(err, identityProvider) {
       if (err) return callback(err);
@@ -42,14 +46,13 @@ module.exports = function(options) {
       // If the providerUserId is not known, ask the identityProvider to translate
       // the username to potentially some other unique identifier.
       if (!providerUser.userId) {
-        identityProvider.getUserId(providerUser.username, function(err, userId) {
-          if (err) return callback(err);
+        identityProvider.getUserId(providerUser.username, function(_err, userId) {
+          if (_err) return callback(_err);
 
           providerUser.userId = userId;
           createUser(providerUser, identityProvider, callback);
         });
-      }
-      else {
+      } else {
         createUser(providerUser, identityProvider, callback);
       }
     });
@@ -57,10 +60,9 @@ module.exports = function(options) {
 
   // Update the user's profile
   exports.updateProfile = function(user, callback) {
-    var updateAttributes = _.pick(user, addtlProviderUserProperties.concat('userId'));
+    var updateAttributes = _.pick(user, addtlUserProperties.concat('userId'));
 
-    if (_.isEmpty(updateAttributes))
-      return callback(null, user);
+    if (_.isEmpty(updateAttributes)) return callback(null, user);
 
     options.database.updateUser(updateAttributes, callback);
   };
@@ -77,20 +79,18 @@ module.exports = function(options) {
 
       // First check if a providerUserId is specified
       if (query.providerUserId) {
-        options.database.findUser(providerUserId, identityProvider.providerName, callback);
-      }
-      // If there's a username, ask the identityProvider to translate the username
-      // to some posssibly different unique id.
-      else if (query.username) {
+        options.database.findUser(query.providerUserId, identityProvider.providerName, callback);
+      } else if (query.username) {
+        // If there's a username, ask the identityProvider to translate the username
+        // to some posssibly different unique id.
         query.username = query.username.toLowerCase();
-        identityProvider.getUserId(query.username, function(err, userId) {
-          if (err) return callback(err);
+        identityProvider.getUserId(query.username, function(_err, userId) {
+          if (_err) return callback(_err);
 
           options.database.findUser(userId, identityProvider.providerName, callback);
         });
-      }
-      else {
-        callback(new Error("Either username or providerUserId must be provided in the query arg"));
+      } else {
+        callback(new Error('Either username or providerUserId must be provided in the query arg'));
       }
     });
   };
@@ -111,8 +111,6 @@ module.exports = function(options) {
 
   // Login with a username and password
   exports.login = function(username, password, providerName, callback) {
-    var providerUser, loggedInUser;
-
     if (_.isFunction(providerName)) {
       callback = providerName;
       providerName = null;
@@ -125,12 +123,13 @@ module.exports = function(options) {
       // when looking up a user.
       username = username.toLowerCase();
 
-      debug("authenticating user %s with provider %s", username, identityProvider.providerName);
-      identityProvider.authenticate(username, password, function(err, providerUser) {
-        if (err) return callback(err);
+      debug('authenticating user %s with provider %s', username, identityProvider.providerName);
+      identityProvider.authenticate(username, password, function(_err, providerUser) {
+        if (_err) return callback(_err);
 
-        if (!providerUser)
-          return callback(Error.create("Could not authenticate user", {code: 'invalidCredentials'}));
+        if (!providerUser) {
+          return callback(Error.create('Could not authenticate user', {code: 'invalidCredentials'}));
+        }
 
         providerLogin(providerUser, identityProvider, callback);
       });
@@ -140,7 +139,7 @@ module.exports = function(options) {
   return exports;
 
   function createUser(providerUser, identityProvider, callback) {
-    debug("create user %s", providerUser.username);
+    debug('create user %s', providerUser.username);
 
     var userData = _.extend({
       // Support special case where the new Aerobatic user has the same
@@ -149,7 +148,7 @@ module.exports = function(options) {
       providerUserId: providerUser.userId,
       provider: identityProvider.providerName,
       lastLogin: new Date()
-    }, _.pick(providerUser, addtlProviderUserProperties));
+    }, _.pick(providerUser, addtlUserProperties));
 
     options.database.createUser(userData, callback);
   }
@@ -158,7 +157,7 @@ module.exports = function(options) {
     var loggedInUser;
     async.series([
       function(cb) {
-        debug("find user %s", providerUser.userId);
+        debug('find user %s', providerUser.userId);
         options.database.findUser(providerUser.userId, identityProvider.providerName, function(err, user) {
           if (err) return cb(err);
           loggedInUser = user;
@@ -168,27 +167,26 @@ module.exports = function(options) {
       function(cb) {
         if (!loggedInUser) {
           options.logger.info({
-            code: "4front:login:newUserCreated",
-            provider:identityProvider.providerName,
+            code: '4front:login:newUserCreated',
+            provider: identityProvider.providerName,
             username: providerUser.username
-          }, "New user");
+          }, 'New user');
 
           createUser(providerUser, identityProvider, function(err, user) {
             if (err) return cb(err);
             loggedInUser = user;
             cb();
           });
-        }
-        else {
+        } else {
           options.logger.info({
-            code: "4front:login:userLoggedIn",
-            provider:identityProvider.providerName,
+            code: '4front:login:userLoggedIn',
+            provider: identityProvider.providerName,
             username: loggedInUser.username
-          }, "User login");
+          }, 'User login');
 
-          debug("update login data for user %s", loggedInUser.username);
+          debug('update login data for user %s', loggedInUser.username);
           // Tack on additional attributes to the user.
-          _.extend(loggedInUser, _.pick(providerUser, addtlProviderUserProperties));
+          _.extend(loggedInUser, _.pick(providerUser, addtlUserProperties));
 
           loggedInUser.lastLogin = new Date();
           options.database.updateUser(loggedInUser, cb);
@@ -201,7 +199,7 @@ module.exports = function(options) {
       // Generate a login token that expires in the configured number of minutes
       var expires = Date.now() + (1000 * 60 * options.jwtTokenExpireMinutes);
 
-      debug("issuing jwt expiring in %s minutes", options.jwtTokenExpireMinutes);
+      debug('issuing jwt expiring in %s minutes', options.jwtTokenExpireMinutes);
       var token = jwt.encode({
         iss: loggedInUser.userId,
         exp: expires
@@ -228,13 +226,14 @@ module.exports = function(options) {
 
       // If no identityProvider was explicitly specified
       // as the default, use the first one.
-      if (!provider)
+      if (!provider) {
         provider = options.identityProviders[0];
-    }
-    else {
+      }
+    } else {
       provider = _.find(options.identityProviders, {providerName: providerName});
-      if (!provider)
-        return callback(Error.create("Invalid identityProvider " + providerName, {code: "invalidIdentityProvider"}));
+      if (!provider) {
+        return callback(Error.create('Invalid identityProvider ' + providerName, {code: 'invalidIdentityProvider'}));
+      }
     }
 
     callback(null, provider);

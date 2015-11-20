@@ -68,7 +68,7 @@ describe('membership', function() {
         callback(null, null);
       };
 
-      this.membership.login('username', 'password', function(err, user) {
+      this.membership.login('username', 'password', function(err) {
         assert.equal(err.code, 'invalidCredentials');
         done();
       });
@@ -82,7 +82,6 @@ describe('membership', function() {
       this.membership.login('username', 'password', function(err, user) {
         if (err) return done(err);
 
-        debugger;
         assert.isTrue(self.options.database.findUser.calledWith(self.providerUserId, self.providerName));
         assert.isTrue(self.options.database.createUser.calledWith(sinon.match({
           providerUserId: self.providerUserId,
@@ -135,7 +134,7 @@ describe('membership', function() {
     });
 
     it('throws error for invalid identity provider', function(done) {
-      this.membership.login('username', 'password', 'InvalidProvider', function(err, user) {
+      this.membership.login('username', 'password', 'InvalidProvider', function(err) {
         assert.isNotNull(err);
         assert.ok(/Invalid identityProvider/.test(err.message));
         done();
@@ -156,8 +155,8 @@ describe('membership', function() {
     });
 
     it('throws error if no default identity provider', function(done) {
-      this.membership.login('username', 'password', "invalidProvider", function(err, user) {
-        assert.equal(err.code, "invalidIdentityProvider");
+      this.membership.login('username', 'password', 'invalidProvider', function(err) {
+        assert.equal(err.code, 'invalidIdentityProvider');
         done();
       });
     });
@@ -218,14 +217,14 @@ describe('membership', function() {
     });
 
     it('invalid username returns error', function(done) {
-      this.membership.createUser({userId: this.providerUserId, username: '&#$U*$'}, function(err, user) {
+      this.membership.createUser({userId: this.providerUserId, username: '&#$U*$'}, function(err) {
         assert.equal(err.code, 'invalidUsername');
         done();
       });
     });
 
     it('missing userId causes identityProvider.getUserId to be called', function(done) {
-      this.membership.createUser({username: 'joe'}, function(err, user) {
+      this.membership.createUser({username: 'joe'}, function(err) {
         assert.ok(self.options.identityProviders[0].getUserId.calledWith('joe'));
 
         done();
@@ -240,7 +239,7 @@ describe('membership', function() {
       badProperty: 2
     };
 
-    this.membership.updateProfile(user, function(err, updatedUser) {
+    this.membership.updateProfile(user, function(err) {
       if (err) return done(err);
 
       assert.isTrue(self.options.database.updateUser.calledWith({
@@ -269,7 +268,7 @@ describe('membership', function() {
       });
     });
 
-    it("missing user", function(done) {
+    it('missing user', function(done) {
       this.options.database.findUser = function(query, providerName, cb) {
         cb(null, null);
       };
